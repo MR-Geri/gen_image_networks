@@ -70,11 +70,15 @@ def plot_colors(colors, fig_size=16) -> None:
 
 
 def main() -> None:
-    size_x, size_y = 2048, 2048
+    size_x, size_y = 1000, 1000
     colors = gen_colors(size_x, size_y)
+    print(colors)
     gen_new_image(size_x, size_y, fgl.gen_layers__start_finish_step(
-        start=64, finish=4, step=20, activation=nn.Tanh
+        start=4, finish=2, step=2, activation=nn.Tanh
     ), colors, save=False)
+#    gen_new_image(size_x, size_y, fgl.gen_layers__num(
+#        num=4, activation=nn.Tanh 
+#    ), colors=colors, save=False)
     # for func in (nn.SiLU, fa.Sinh, fa.Cosh, nn.Tanh):
     #     gen_new_image(2048, 2048, fgl.gen_layers__start_finish_step(
     #         start=128, finish=64, step=16, activation=func
@@ -84,12 +88,17 @@ def main() -> None:
     #         gen_new_image(2048, 2048, fgl.gen_layers__degree_two(
     #             degree=degree, activation=func
     #         ))
-    # for num in range(2, 17):
-    #     for func in (nn.SiLU, fa.Sinh, fa.Cosh, nn.Tanh):
-    #         gen_new_image(2048, 2048, fgl.gen_layers__num(
-    #             num=num, activation=func
-    #         ))
+#    for func in (nn.SiLU, fa.Sinh, fa.Cosh, nn.Tanh):
+#        gen_new_image(2048, 2048, fgl.gen_layers__num(
+#            num=8, activation=func 
+#        ), colors=colors)
+#    for num in range(2, 17):
+#        for func in (nn.SiLU, fa.Sinh, fa.Cosh, nn.Tanh):
+#            gen_new_image(2048, 2048, fgl.gen_layers__num(
+#                num=num, activation=func
+#            ))
 
 
 if __name__ == '__main__':
     main()
+
