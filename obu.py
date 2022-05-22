@@ -3,10 +3,12 @@ import torch
 import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+
 import functions_gen_layers as fgl
 import matplotlib.image as img
 
-CUDA, LOAD = False, True
+CUDA, LOAD = True, False
 device = torch.device('cuda' if CUDA else 'cpu')
 layers = fgl.gen_image(nn.Sigmoid, 4, 100, True)
 
@@ -28,9 +30,30 @@ class NN(nn.Module):
         return self.layers(x)
 
 
-def fit(model, data, batch_size=100, train=True):
+class MyDataset(torch.utils.data.Dataset):
+    def __init__(self, image, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.size = image.shape
+        self.input = []
+        self.output = []
+        for y in range(self.size[1]):
+            for x in range(self.size[0]):
+                self.input.append(torch.Tensor(self.to_neuro(x, y)).to(device=device, non_blocking=True))
+                self.output.append(torch.Tensor(image[x][y]).to(device=device, non_blocking=True))
+
+    def to_neuro(self, x, y):
+        return 2 * x / self.size[0] - 1, 2 * y / self.size[1] - 1
+
+    def __len__(self):
+        return self.size[0] * self.size[1]
+
+    def __getitem__(self, num):
+        return self.input[num], self.output[num]
+
+
+def fit(model, data, train=True):
     model.train(train)
-    for xb, yb in data.items():
+    for xb, yb in data:
         # прямое распространение
         y = model(xb)
         L = loss(y, yb)  # вычисляем ошибку
@@ -48,17 +71,7 @@ def show(image, is_save: bool = False):
     plt.show()
 
 
-def gen_data_lern(data, size):
-    to_neuro = lambda x, y: (2 * x / size[0] - 1, 2 * y / size[1] - 1)
-    return {
-        torch.Tensor(to_neuro(x, y)).to(device=device, non_blocking=True):
-            torch.Tensor(data[x][y]).to(device=device, non_blocking=True)
-        for x in range(size[0]) for y in range(size[1])
-    }
-
-
 def get_image_from_neuro(neuro, size):
-    get_cord = lambda num: (num % size[0], (num // size[0]) % size[1])
     to_neuro = lambda x, y: (2 * x / size[0] - 1, 2 * y / size[1] - 1)
     data = [
         [
@@ -78,11 +91,12 @@ def save(epoch: int, lern_time):
              'model': model.state_dict(),  # параметры модели
              'optimizer': optimizer.state_dict()}  # состояние оптимизатора
 
-    torch.save(state, 'state.pth')  # сохраняем файл
+    torch.save(state, f'state_{str(lern_time).replace(":", "_")}.pth')  # сохраняем файл
+    print(f'SAVE')
 
 
-def load():
-    state = torch.load('state.pth')
+def load(path: str):
+    state = torch.load(path)
     model = NN(layers).to(device=device, non_blocking=True)
     model.load_state_dict(state['model'])
     optimizer = torch.optim.SGD(model.parameters(), lr=1)
@@ -93,28 +107,27 @@ def load():
 
 if __name__ == '__main__':
     model = NN(layers).to(device=device, non_blocking=True).apply(init_normal)
-    loss = nn.MSELoss().to(device=device, non_blocking=True)
+    loss = nn.MSELoss(reduction='sum').to(device=device, non_blocking=True)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.002, momentum=0.9, nesterov=True)
     Y = img.imread('images/image.jpg') / 255
     SIZE = Y.shape
     #
-    start_epoch, epochs = 0, 10000  # число эпох
-    data = gen_data_lern(Y, Y.shape)
+    data1 = MyDataset(Y)
+    data = DataLoader(data1, batch_size=64, shuffle=True)
+
+    epoch, start_epoch, epochs = 0, 0, 10 ** 6  # число эпох
     start = datetime.datetime.now()
-    last = datetime.datetime.now()
 
     if LOAD:
-        model, optimizer, l_time, start_epoch = load()
+        model, optimizer, l_time, start_epoch = load('')
         start -= l_time
 
-    for epoch in range(start_epoch, epochs):
+    while True:
+        epoch += 1
         now = datetime.datetime.now()
-        print(f'\tвремени прошло: {now - start} (+{now - last})')
-        last = datetime.datetime.now()
         fit(model, data)  # одна эпоха
-        if not epoch % 5:
-            show(get_image_from_neuro(model, SIZE), is_save=True)
         if not epoch % 100:
-            print(f'{epoch=}')
-            # show(get_image_from_neuro(model, SIZE))
+            print(f'{epoch=} времени прошло: {now - start}')
+            show(get_image_from_neuro(model, SIZE), is_save=False)
+        if not epoch % 500:
             save(epoch, now - start)
