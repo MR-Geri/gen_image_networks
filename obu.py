@@ -126,8 +126,8 @@ if __name__ == '__main__':
         epoch += 1
         now = datetime.datetime.now()
         fit(model, data)  # одна эпоха
-        if not epoch % 100:
+        if not epoch % 10:
             print(f'{epoch=} времени прошло: {now - start}')
-            show(get_image_from_neuro(model, SIZE), is_save=False)
-        if not epoch % 500:
-            save(epoch, now - start)
+            show(get_image_from_neuro(model, SIZE), is_save=True)
+        # if not epoch % 500:
+        #     save(epoch, now - start)
