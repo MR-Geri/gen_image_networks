@@ -10,7 +10,19 @@ import matplotlib.image as img
 
 CUDA, LOAD = True, False
 device = torch.device('cuda' if CUDA else 'cpu')
-layers = fgl.gen_image(nn.Sigmoid, 4, 100, True)
+functions = (
+    (
+        nn.Sigmoid, lambda x, y, size: (2 * (x / size[0] - 0.5), 2 * (y / size[1] - 0.5)),
+        lambda color: color, lambda color: color
+    ),
+    (
+        nn.Tanh, lambda x, y, size: (10 * (x / size[0] - 0.5), 10 * (y / size[1] - 0.5)),
+        lambda color: color * 2 - 1, lambda color: (color + 1) / 2
+    ),
+    ()
+)
+func, to_neuro, to_color, from_color = functions[0]
+layers = fgl.gen_image(func, 4, 100, False)
 
 
 def init_normal(m):
@@ -37,13 +49,10 @@ class MyDataset(torch.utils.data.Dataset):
         self.output = []
         for y in range(self.size[1]):
             for x in range(self.size[0]):
-                self.input.append(self.to_neuro(x, y))
-                self.output.append(image[x][y])
-        self.input = torch.tensor(self.input, device=device, dtype=torch.float)
-        self.output = torch.tensor(self.output, device=device, dtype=torch.float)
-
-    def to_neuro(self, x, y):
-        return 2 * x / self.size[0] - 1, 2 * y / self.size[1] - 1
+                self.input.append(to_neuro(x, y, self.size))
+                self.output.append(to_color(image[x][y]))
+        self.input = torch.tensor(np.array(self.input), device=device, dtype=torch.float)
+        self.output = torch.tensor(np.array(self.output), device=device, dtype=torch.float)
 
     def __len__(self):
         return self.size[0] * self.size[1]
@@ -75,11 +84,12 @@ def show(image, is_save: bool = False):
 
 
 def get_image_from_neuro(neuro, size):
-    to_neuro = lambda x, y: (2 * x / size[0] - 1, 2 * y / size[1] - 1)
     data = torch.tensor([
-        [to_neuro(x, y) for y in range(size[1])] for x in range(size[0])
+        [to_neuro(x, y, size) for y in range(size[1])] for x in range(size[0])
     ], device=device, dtype=torch.float)
-    return neuro(data).detach().cpu().numpy() if CUDA else neuro(data).detach().numpy()
+    out = neuro(data).detach().cpu().numpy() if CUDA else neuro(data).detach().numpy()
+    out = from_color(out)
+    return out
 
 
 def save(epoch: int, lern_time):
@@ -103,30 +113,32 @@ def load(path: str):
 
 
 if __name__ == '__main__':
+    torch.cuda.empty_cache()
     model = NN(layers).to(device=device, non_blocking=True).apply(init_normal)
-    loss = nn.MSELoss(reduction='sum').to(device=device, non_blocking=True)
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.002, momentum=0.9, nesterov=True)
-    Y = img.imread('01.jpg') / 255
+    loss = nn.MSELoss().to(device=device, non_blocking=True)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.002, momentum=0.7, nesterov=True)
+    Y = img.imread('images/image.jpg') / 255
     SIZE = Y.shape
     start = datetime.datetime.now()
     print('size =', SIZE)
     #
     data1 = MyDataset(Y)
     data_load = DataLoader(data1, batch_size=64, shuffle=True)
-    print('data done', datetime.datetime.now() - start)
+    show(np.array(from_color(data1.output.detach().cpu().numpy())).reshape((64, 64, 3)))
     epoch = 0
+    print('data done', datetime.datetime.now() - start)
     start = datetime.datetime.now()
-
     if LOAD:
         model, optimizer, l_time, epoch = load('')
         start -= l_time
 
     while True:
         epoch += 1
-        now = datetime.datetime.now()
         fit(model, data_load)  # одна эпоха
-        print(f'{epoch=} времени прошло: {now - start}')
-        if not epoch % 10:
-            show(get_image_from_neuro(model, SIZE), is_save=True)
-        if not epoch % 500:
-            save(epoch, now - start)
+        now = datetime.datetime.now()
+        if not epoch % 50:
+            print(f'{epoch=} времени прошло: {now - start}')
+        if not epoch % 50 or epoch == 1:
+            show(get_image_from_neuro(model, SIZE), is_save=False)
+        # if not epoch % 500:
+        #     save(epoch, now - start)
