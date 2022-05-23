@@ -21,7 +21,7 @@ functions = (
     ),
     ()
 )
-func, to_neuro, to_color, from_color = functions[0]
+func, to_neuro, to_color, from_color = functions[1]
 layers = fgl.gen_image(func, 4, 100, False)
 
 
@@ -47,10 +47,11 @@ class MyDataset(torch.utils.data.Dataset):
         self.size = image.shape
         self.input = []
         self.output = []
+        image = to_color(image)
         for y in range(self.size[1]):
             for x in range(self.size[0]):
                 self.input.append(to_neuro(x, y, self.size))
-                self.output.append(to_color(image[x][y]))
+                self.output.append(image[x][y])
         self.input = torch.tensor(np.array(self.input), device=device, dtype=torch.float)
         self.output = torch.tensor(np.array(self.output), device=device, dtype=torch.float)
 
@@ -117,7 +118,7 @@ if __name__ == '__main__':
     model = NN(layers).to(device=device, non_blocking=True).apply(init_normal)
     loss = nn.MSELoss(reduction='sum').to(device=device, non_blocking=True)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.002, momentum=0.7, nesterov=True)
-    Y = img.imread('images/image.jpg') / 255
+    Y = img.imread('01.jpg') / 255
     SIZE = Y.shape
     start = datetime.datetime.now()
     print('size =', SIZE)
@@ -136,9 +137,9 @@ if __name__ == '__main__':
         epoch += 1
         fit(model, data_load)  # одна эпоха
         now = datetime.datetime.now()
-        if not epoch % 100:
+        if not epoch % 1:
             print(f'{epoch=} времени прошло: {now - start}')
-        if not epoch % 100 or epoch == 1:
+        if not epoch % 2 or epoch == 1:
             show(get_image_from_neuro(model, SIZE), is_save=False)
         # if not epoch % 500:
         #     save(epoch, now - start)
