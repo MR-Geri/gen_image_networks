@@ -16,7 +16,7 @@ functions = (
         lambda color: color, lambda color: color
     ),
     (
-        nn.Tanh, lambda x, y, size: (10 * (x / size[0] - 0.5), 10 * (y / size[1] - 0.5)),
+        nn.Tanh, lambda x, y, size: (2 * (x / size[0] - 0.5), 2 * (y / size[1] - 0.5)),  # хз
         lambda color: color * 2 - 1, lambda color: (color + 1) / 2
     ),
     ()
@@ -115,7 +115,7 @@ def load(path: str):
 if __name__ == '__main__':
     torch.cuda.empty_cache()
     model = NN(layers).to(device=device, non_blocking=True).apply(init_normal)
-    loss = nn.MSELoss().to(device=device, non_blocking=True)
+    loss = nn.MSELoss(reduction='sum').to(device=device, non_blocking=True)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.002, momentum=0.7, nesterov=True)
     Y = img.imread('images/image.jpg') / 255
     SIZE = Y.shape
@@ -124,7 +124,7 @@ if __name__ == '__main__':
     #
     data1 = MyDataset(Y)
     data_load = DataLoader(data1, batch_size=64, shuffle=True)
-    show(np.array(from_color(data1.output.detach().cpu().numpy())).reshape((64, 64, 3)))
+    # show(np.array(from_color(data1.output.detach().cpu().numpy())).reshape((64, 64, 3)))
     epoch = 0
     print('data done', datetime.datetime.now() - start)
     start = datetime.datetime.now()
@@ -136,9 +136,9 @@ if __name__ == '__main__':
         epoch += 1
         fit(model, data_load)  # одна эпоха
         now = datetime.datetime.now()
-        if not epoch % 50:
+        if not epoch % 100:
             print(f'{epoch=} времени прошло: {now - start}')
-        if not epoch % 50 or epoch == 1:
+        if not epoch % 100 or epoch == 1:
             show(get_image_from_neuro(model, SIZE), is_save=False)
         # if not epoch % 500:
         #     save(epoch, now - start)
