@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 import functions_gen_layers as fgl
 import matplotlib.image as img
 
-CUDA, LOAD = True, False
+CUDA, LOAD = False, False
 device = torch.device('cuda' if CUDA else 'cpu')
 functions = (
     (
@@ -21,7 +21,7 @@ functions = (
     ),
     ()
 )
-func, to_neuro, to_color, from_color = functions[1]
+func, to_neuro, to_color, from_color = functions[0]
 layers = fgl.gen_image(func, 4, 100, False)
 
 
@@ -116,8 +116,10 @@ def load(path: str):
 if __name__ == '__main__':
     torch.cuda.empty_cache()
     model = NN(layers).to(device=device, non_blocking=True).apply(init_normal)
+
     loss = nn.MSELoss(reduction='sum').to(device=device, non_blocking=True)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.002, momentum=0.7, nesterov=True)
+
     Y = img.imread('01.jpg') / 255
     SIZE = Y.shape
     start = datetime.datetime.now()
@@ -143,3 +145,4 @@ if __name__ == '__main__':
             show(get_image_from_neuro(model, SIZE), is_save=False)
         # if not epoch % 500:
         #     save(epoch, now - start)
+
